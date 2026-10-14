@@ -22,8 +22,11 @@ public class MainActivity extends Activity {
     private IControl quickSet;
     private boolean quickSetBound = false;
     private final Handler repeatHandler = new Handler();
-    private static final long LONG_PRESS_DELAY_MS = 350;
-    private static final long REPEAT_INTERVAL_MS = 220;
+    private static final long LONG_PRESS_DELAY_MS = 300;
+    private static final long REPEAT_INTERVAL_MS = 108;
+    // NEC repeat frame: ~9 ms mark + ~2.25 ms space + ~560 us mark.
+    // A trailing space keeps the pattern valid for Android/QuickSet transmit APIs.
+    private static final int[] NEC_REPEAT = {9000, 2250, 560, 40000};
 
     private static final int[] POWER = {9687,4827,656,558,656,558,656,558,656,591,623,591,623,591,623,591,656,558,656,1773,656,1806,623,1806,656,1773,656,1806,623,1806,623,1806,656,1806,656,558,623,591,656,1773,656,1773,689,1773,656,558,623,591,656,558,656,1773,689,1773,656,558,656,558,656,558,656,1773,689,1773,656,1773,656,42790,9753,2397,656,109455};
     private static final int[] MODE = {9720,4827,656,558,656,558,656,558,656,558,689,558,656,558,656,558,656,558,656,1806,623,1806,656,1773,656,1773,656,1806,656,1773,656,1773,656,1773,689,558,656,558,656,558,656,558,656,558,656,591,656,1773,656,558,656,1773,656,1806,656,1773,656,1773,656,1773,656,1806,656,558,656,1773,656,42790,9786,2397,656,109455};
@@ -56,7 +59,7 @@ public class MainActivity extends Activity {
             private final Runnable repeater = new Runnable() {
                 @Override public void run() {
                     if (!pressed) return;
-                    send(pattern, name);
+                    send(NEC_REPEAT, name + " LONG");
                     repeatHandler.postDelayed(this, REPEAT_INTERVAL_MS);
                 }
             };
