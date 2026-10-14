@@ -2,6 +2,11 @@ package com.uck.yanoxremote;
 
 import android.app.Activity;
 import android.hardware.ConsumerIrManager;
+import android.content.ComponentName;
+import android.content.Context;
+import android.content.Intent;
+import android.content.ServiceConnection;
+import android.os.IBinder;
 import android.os.Bundle;
 import android.view.HapticFeedbackConstants;
 import android.view.View;
@@ -12,6 +17,8 @@ public class MainActivity extends Activity {
     private static final int CARRIER = 38000;
     private ConsumerIrManager ir;
     private TextView status;
+    private IControl quickSet;
+    private boolean quickSetBound = false;
 
     private static final int[] POWER = {9687,4827,656,558,656,558,656,558,656,591,623,591,623,591,623,591,656,558,656,1773,656,1806,623,1806,656,1773,656,1806,623,1806,623,1806,656,1806,656,558,623,591,656,1773,656,1773,689,1773,656,558,623,591,656,558,656,1773,689,1773,656,558,656,558,656,558,656,1773,689,1773,656,1773,656,42790,9753,2397,656,109455};
     private static final int[] MODE = {9720,4827,656,558,656,558,656,558,656,558,689,558,656,558,656,558,656,558,656,1806,623,1806,656,1773,656,1773,656,1806,656,1773,656,1773,656,1773,689,558,656,558,656,558,656,558,656,558,656,591,656,1773,656,558,656,1773,656,1806,656,1773,656,1773,656,1773,656,1806,656,558,656,1773,656,42790,9786,2397,656,109455};
@@ -27,8 +34,8 @@ public class MainActivity extends Activity {
         setContentView(R.layout.activity_main);
         status = (TextView)findViewById(R.id.status);
         ir = (ConsumerIrManager)getSystemService(CONSUMER_IR_SERVICE);
-        boolean ok = ir != null && ir.hasIrEmitter();
-        status.setText(ok ? "IR 송신기 감지됨 · 38 kHz" : "표준 Android IR 송신기를 찾지 못했습니다");
+        status.setText("LeEco QuickSet 연결 중...");
+        bindQuickSet();
 
         bind(R.id.power, POWER, "POWER"); bind(R.id.mode, MODE, "MODE");
         bind(R.id.alarm, ALARM, "ALARM"); bind(R.id.timer, TIMER, "TIMER");
@@ -46,16 +53,58 @@ public class MainActivity extends Activity {
     }
 
     private void send(int[] pattern, String name) {
-        if (ir == null || !ir.hasIrEmitter()) {
-            Toast.makeText(this, "IR 송신기를 사용할 수 없습니다.", Toast.LENGTH_SHORT).show();
-            return;
+        // LeEco EUI: use UEI QuickSet first. This bypasses the ROM's restricted ConsumerIrManager.
+        if (quickSetBound && quickSet != null) {
+            try {
+                int result = quickSet.transmit(CARRIER, pattern);
+                int last = quickSet.getLastResultcode();
+                status.setText(name + " 송신 · QuickSet (" + result + "/" + last + ")");
+                return;
+            } catch (Exception e) {
+                status.setText("QuickSet 오류: " + e.getClass().getSimpleName());
+            }
         }
+
+        // Fallback for normal Android IR devices.
         try {
+            if (ir == null || !ir.hasIrEmitter()) throw new IllegalStateException("IR 송신기 없음");
             ir.transmit(CARRIER, pattern);
-            status.setText(name + " 송신 · 38 kHz");
+            status.setText(name + " 송신 · Android IR");
         } catch (Exception e) {
             status.setText("송신 오류: " + e.getClass().getSimpleName());
-            Toast.makeText(this, e.toString(), Toast.LENGTH_LONG).show();
+            Toast.makeText(this, "QuickSet 미연결 / " + e.toString(), Toast.LENGTH_LONG).show();
+            bindQuickSet();
         }
+    }
+
+    private final ServiceConnection quickSetConnection = new ServiceConnection() {
+        @Override public void onServiceConnected(ComponentName name, IBinder service) {
+            quickSet = new IControl(service);
+            quickSetBound = true;
+            status.setText("LeEco QuickSet 연결됨 · 38 kHz");
+        }
+        @Override public void onServiceDisconnected(ComponentName name) {
+            quickSetBound = false;
+            quickSet = null;
+            status.setText("LeEco QuickSet 연결 끊김");
+        }
+    };
+
+    private void bindQuickSet() {
+        try {
+            Intent i = new Intent(IControl.ACTION);
+            i.setClassName(IControl.QUICKSET_UEI_PACKAGE_NAME, IControl.QUICKSET_UEI_SERVICE_CLASS);
+            boolean ok = bindService(i, quickSetConnection, Context.BIND_AUTO_CREATE);
+            if (!ok) status.setText("QuickSet 서비스를 찾지 못했습니다");
+        } catch (Throwable t) {
+            status.setText("QuickSet 연결 오류: " + t.getClass().getSimpleName());
+        }
+    }
+
+    @Override protected void onDestroy() {
+        if (quickSetBound) {
+            try { unbindService(quickSetConnection); } catch (Exception ignored) {}
+        }
+        super.onDestroy();
     }
 }
