@@ -1,0 +1,28 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:orientation="vertical" android:padding="20dp" android:background="#F3F3F3">
+
+    <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:text="야녹스 LED CLOCK" android:textSize="24sp" android:textStyle="bold"
+        android:textColor="#111111" android:gravity="center" android:padding="12dp" />
+
+    <TextView android:id="@+id/status" android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:text="IR 확인 중…" android:textSize="14sp" android:textColor="#555555"
+        android:gravity="center" android:paddingBottom="16dp" />
+
+    <GridLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1"
+        android:columnCount="2" android:rowCount="4" android:useDefaultMargins="true">
+        <Button android:id="@+id/power" android:text="POWER" style="@style/RemoteButton" />
+        <Button android:id="@+id/mode" android:text="MODE" style="@style/RemoteButton" />
+        <Button android:id="@+id/alarm" android:text="ALARM" style="@style/RemoteButton" />
+        <Button android:id="@+id/timer" android:text="TIMER" style="@style/RemoteButton" />
+        <Button android:id="@+id/up" android:text="▲  UP" style="@style/RemoteButton" />
+        <Button android:id="@+id/ss" android:text="S / S" style="@style/RemoteButton" />
+        <Button android:id="@+id/down" android:text="▼  DOWN" style="@style/RemoteButton" />
+        <Button android:id="@+id/clear" android:text="CLEAR" style="@style/RemoteButton" />
+    </GridLayout>
+
+    <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:text="Mooas 3D LED Clock 실측 IR 코드 · 38 kHz\n시계 IR 수신부를 향해 눌러주세요."
+        android:textSize="12sp" android:textColor="#777777" android:gravity="center" android:padding="8dp" />
+</LinearLayout>

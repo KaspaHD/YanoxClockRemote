@@ -1,0 +1,41 @@
+야녹스 LED 시계 리모컨 APK 만들기 (Android Studio 불필요)
+
+1. GitHub 로그인 후 새 저장소(Repository)를 만듭니다.
+   - Repository name: YanoxClockRemote
+   - Public/Private 어느 쪽도 가능
+   - Create repository 클릭
+
+2. 이 ZIP을 PC에서 압축 해제합니다.
+
+3. GitHub 새 저장소 화면에서 'uploading an existing file'을 클릭합니다.
+   또는 Add file > Upload files를 선택합니다.
+
+4. 압축을 푼 YanoxClockRemote 폴더 '안의 파일과 폴더'를 모두 업로드합니다.
+   중요: .github 폴더도 반드시 업로드되어야 합니다.
+   (Windows에서 .github가 보이지 않으면 탐색기에서 숨김 항목 표시를 켜세요.)
+
+5. Commit changes를 누릅니다.
+
+6. 저장소 상단의 Actions 탭을 누릅니다.
+   처음이면 'I understand my workflows, go ahead and enable them'을 누릅니다.
+
+7. 왼쪽에서 'Build APK' 선택 > Run workflow > 초록색 Run workflow 클릭.
+   main/master에 업로드하면 자동으로 빌드가 시작될 수도 있습니다.
+
+8. 1~3분 후 초록색 체크가 뜨면 실행 결과를 클릭합니다.
+
+9. 화면 아래 Artifacts에서 'YanoxClockRemote-APK'를 클릭해 ZIP을 받습니다.
+
+10. ZIP 안의 YanoxClockRemote.apk를 LeEco Le 2 Pro로 복사해 설치합니다.
+    설치 차단 시 Android 설정에서 '알 수 없는 출처' 설치를 허용합니다.
+
+앱 버튼:
+POWER / MODE
+ALARM / TIMER
+UP / S/S
+DOWN / CLEAR
+
+참고:
+- Android 4.4(API 19) 이상을 대상으로 만든 테스트 앱입니다.
+- 현재 IR 신호는 동일 계열로 추정되는 Mooas 3D LED Clock에서 학습된 신호를 기반으로 합니다.
+- 야녹스텍 시계와 IR 코드가 다르면 버튼이 반응하지 않을 수 있으며, 그 경우 코드 탐색 기능을 추가해야 합니다.
