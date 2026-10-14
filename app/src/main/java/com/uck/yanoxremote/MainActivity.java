@@ -22,11 +22,18 @@ public class MainActivity extends Activity {
     private IControl quickSet;
     private boolean quickSetBound = false;
     private final Handler repeatHandler = new Handler();
-    private static final long LONG_PRESS_DELAY_MS = 300;
-    private static final long REPEAT_INTERVAL_MS = 108;
-    // NEC repeat frame: ~9 ms mark + ~2.25 ms space + ~560 us mark.
-    // A trailing space keeps the pattern valid for Android/QuickSet transmit APIs.
-    private static final int[] NEC_REPEAT = {9000, 2250, 560, 40000};
+    private static final long LONG_PRESS_DELAY_MS = 350;
+    // The learned Broadlink command already shows the real protocol timing:
+    // full frame -> ~42.8 ms gap -> repeat frame (about 9.8/2.4/0.65 ms).
+    // For a true hold we send ONE continuous waveform through QuickSet, rather
+    // than separate Binder transmit() calls which insert an unwanted break.
+    private static final int LONG_REPEAT_COUNT = 18;
+    private static final int FULL_FRAME_LENGTH = 67;
+    private static final int FIRST_REPEAT_GAP_US = 42790;
+    private static final int REPEAT_MARK_US = 9780;
+    private static final int REPEAT_SPACE_US = 2400;
+    private static final int REPEAT_END_MARK_US = 656;
+    private static final int REPEAT_GAP_US = 97000;
 
     private static final int[] POWER = {9687,4827,656,558,656,558,656,558,656,591,623,591,623,591,623,591,656,558,656,1773,656,1806,623,1806,656,1773,656,1806,623,1806,623,1806,656,1806,656,558,623,591,656,1773,656,1773,689,1773,656,558,623,591,656,558,656,1773,689,1773,656,558,656,558,656,558,656,1773,689,1773,656,1773,656,42790,9753,2397,656,109455};
     private static final int[] MODE = {9720,4827,656,558,656,558,656,558,656,558,689,558,656,558,656,558,656,558,656,1806,623,1806,656,1773,656,1773,656,1806,656,1773,656,1773,656,1773,689,558,656,558,656,558,656,558,656,558,656,591,656,1773,656,558,656,1773,656,1806,656,1773,656,1773,656,1773,656,1806,656,558,656,1773,656,42790,9786,2397,656,109455};
@@ -55,12 +62,13 @@ public class MainActivity extends Activity {
         final View button = findViewById(id);
         button.setOnTouchListener(new View.OnTouchListener() {
             private boolean pressed = false;
+            private boolean longSent = false;
 
-            private final Runnable repeater = new Runnable() {
+            private final Runnable longPressSender = new Runnable() {
                 @Override public void run() {
                     if (!pressed) return;
-                    send(NEC_REPEAT, name + " LONG");
-                    repeatHandler.postDelayed(this, REPEAT_INTERVAL_MS);
+                    longSent = true;
+                    send(buildLongPattern(pattern), name + " LONG");
                 }
             };
 
@@ -68,27 +76,45 @@ public class MainActivity extends Activity {
                 switch (event.getActionMasked()) {
                     case MotionEvent.ACTION_DOWN:
                         pressed = true;
+                        longSent = false;
                         v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
-                        send(pattern, name);
-                        repeatHandler.removeCallbacks(repeater);
-                        repeatHandler.postDelayed(repeater, LONG_PRESS_DELAY_MS);
+                        repeatHandler.removeCallbacks(longPressSender);
+                        repeatHandler.postDelayed(longPressSender, LONG_PRESS_DELAY_MS);
                         return true;
 
                     case MotionEvent.ACTION_UP:
                         pressed = false;
-                        repeatHandler.removeCallbacks(repeater);
+                        repeatHandler.removeCallbacks(longPressSender);
+                        if (!longSent) send(pattern, name);
                         v.performClick();
                         return true;
 
                     case MotionEvent.ACTION_CANCEL:
                     case MotionEvent.ACTION_OUTSIDE:
                         pressed = false;
-                        repeatHandler.removeCallbacks(repeater);
+                        repeatHandler.removeCallbacks(longPressSender);
                         return true;
                 }
                 return true;
             }
         });
+    }
+
+    private int[] buildLongPattern(int[] learnedPattern) {
+        // First 67 timings are the complete command frame including its final mark.
+        // Then reproduce the repeat frame continuously inside the SAME transmit call.
+        int firstLen = Math.min(FULL_FRAME_LENGTH, learnedPattern.length);
+        int[] out = new int[firstLen + 1 + LONG_REPEAT_COUNT * 4];
+        int pos = 0;
+        for (int i = 0; i < firstLen; i++) out[pos++] = learnedPattern[i];
+        out[pos++] = FIRST_REPEAT_GAP_US;
+        for (int i = 0; i < LONG_REPEAT_COUNT; i++) {
+            out[pos++] = REPEAT_MARK_US;
+            out[pos++] = REPEAT_SPACE_US;
+            out[pos++] = REPEAT_END_MARK_US;
+            out[pos++] = REPEAT_GAP_US;
+        }
+        return out;
     }
 
     private void send(int[] pattern, String name) {
