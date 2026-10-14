@@ -8,6 +8,8 @@ import android.content.Intent;
 import android.content.ServiceConnection;
 import android.os.IBinder;
 import android.os.Bundle;
+import android.os.Handler;
+import android.view.MotionEvent;
 import android.view.HapticFeedbackConstants;
 import android.view.View;
 import android.widget.TextView;
@@ -19,6 +21,9 @@ public class MainActivity extends Activity {
     private TextView status;
     private IControl quickSet;
     private boolean quickSetBound = false;
+    private final Handler repeatHandler = new Handler();
+    private static final long LONG_PRESS_DELAY_MS = 350;
+    private static final long REPEAT_INTERVAL_MS = 220;
 
     private static final int[] POWER = {9687,4827,656,558,656,558,656,558,656,591,623,591,623,591,623,591,656,558,656,1773,656,1806,623,1806,656,1773,656,1806,623,1806,623,1806,656,1806,656,558,623,591,656,1773,656,1773,689,1773,656,558,623,591,656,558,656,1773,689,1773,656,558,656,558,656,558,656,1773,689,1773,656,1773,656,42790,9753,2397,656,109455};
     private static final int[] MODE = {9720,4827,656,558,656,558,656,558,656,558,689,558,656,558,656,558,656,558,656,1806,623,1806,656,1773,656,1773,656,1806,656,1773,656,1773,656,1773,689,558,656,558,656,558,656,558,656,558,656,591,656,1773,656,558,656,1773,656,1806,656,1773,656,1773,656,1773,656,1806,656,558,656,1773,656,42790,9786,2397,656,109455};
@@ -44,10 +49,41 @@ public class MainActivity extends Activity {
     }
 
     private void bind(int id, final int[] pattern, final String name) {
-        findViewById(id).setOnClickListener(new View.OnClickListener() {
-            @Override public void onClick(View v) {
-                v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
-                send(pattern, name);
+        final View button = findViewById(id);
+        button.setOnTouchListener(new View.OnTouchListener() {
+            private boolean pressed = false;
+
+            private final Runnable repeater = new Runnable() {
+                @Override public void run() {
+                    if (!pressed) return;
+                    send(pattern, name);
+                    repeatHandler.postDelayed(this, REPEAT_INTERVAL_MS);
+                }
+            };
+
+            @Override public boolean onTouch(View v, MotionEvent event) {
+                switch (event.getActionMasked()) {
+                    case MotionEvent.ACTION_DOWN:
+                        pressed = true;
+                        v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                        send(pattern, name);
+                        repeatHandler.removeCallbacks(repeater);
+                        repeatHandler.postDelayed(repeater, LONG_PRESS_DELAY_MS);
+                        return true;
+
+                    case MotionEvent.ACTION_UP:
+                        pressed = false;
+                        repeatHandler.removeCallbacks(repeater);
+                        v.performClick();
+                        return true;
+
+                    case MotionEvent.ACTION_CANCEL:
+                    case MotionEvent.ACTION_OUTSIDE:
+                        pressed = false;
+                        repeatHandler.removeCallbacks(repeater);
+                        return true;
+                }
+                return true;
             }
         });
     }
@@ -102,6 +138,7 @@ public class MainActivity extends Activity {
     }
 
     @Override protected void onDestroy() {
+        repeatHandler.removeCallbacksAndMessages(null);
         if (quickSetBound) {
             try { unbindService(quickSetConnection); } catch (Exception ignored) {}
         }
